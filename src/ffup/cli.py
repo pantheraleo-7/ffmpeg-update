@@ -1,5 +1,5 @@
-import argparse
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -7,108 +7,120 @@ import sys
 import zipfile
 from pathlib import Path
 
+import fire
 import requests
 from tqdm import tqdm
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--dry-run', action='store_true')
-parser.add_argument('-v', '--verbose', action='store_true')
-parser.add_argument('-f', '--force', '-i', '--install', action='store_true')
-parser.add_argument('-p', '--path', type=lambda path: Path(path).expanduser())
-parser.add_argument('-o', '--os', default='macos', choices=['macos', 'linux'])
-parser.add_argument('-a', '--arch', default='arm64', choices=['arm64', 'amd64'])
-parser.add_argument('-r', '--repo', default='snapshot', choices=['snapshot', 'release'])
-parser.add_argument('-b', '--bin', default='ffmpeg', choices=['ffmpeg', 'ffprobe', 'ffplay'])
-parser.add_argument('--RE-RUN', action='store_true', help=argparse.SUPPRESS)
-args = parser.parse_args()
-
-if args.path is None:
-    args.path = Path(shutil.which(args.bin)).parent
-
-# Configurations
-URL = f'https://ffmpeg.martin-riedl.de/redirect/latest/{args.os}/{args.arch}/{args.repo}/{args.bin}.zip'
-TEMP_FILE = Path('__ff.zip')
+_TEMPFILE = Path('_ff.zip')
 
 
-def get_current_version():
-    result = subprocess.check_output([args.path/args.bin, '-version'], text=True)
-    match = re.search(r'version (N-\d+-\w+|\d\.\d)', result)
-    if match is None:
-        print(f'Failed to parse current version from `{args.path/args.bin} -version` output.')
-        sys.exit(1)
+class FFUp:
 
-    version = match.group(1)
-    print('Current version:', version)
-    return version
+    def __init__(self, sys=None, arch=None, repo=None, bin=None):
+        self.sys = sys or os.getenv('SYS') \
+            or platform.system().replace('Darwin', 'macOS').lower()
 
+        self.arch = arch or os.getenv('ARCH') \
+            or ('arm64' if  platform.machine() in ['arm64', 'aarch64'] else 'amd64')
 
-def get_latest_version():
-    response = requests.get(URL, allow_redirects=False)
-    response.raise_for_status()
+        self.repo = repo or os.getenv('REPO') or 'snapshot'
+        self.bin = bin or os.getenv('BIN') or 'ffmpeg'
 
-    if response.status_code==307:
-        redirect_url = response.headers['location']
-        match = re.search(r'_(N-\d+-\w+|\d\.\d)', redirect_url)
-        if match is None:
-            print('Failed to parse latest version from redirected url.')
+        self.URL = f'https://ffmpeg.martin-riedl.de/redirect/latest/{self.sys}/{self.arch}/{self.repo}/{self.bin}.zip'
+
+    def update(self, path=None, dry_run=False):
+        if path is None:
+            bin = shutil.which(self.bin)
+            if bin is None:
+                print('Error: failed to locate the installation.')
+                sys.exit(1)
+            else:
+                path = Path(bin).parent
+        else:
+            path = Path(path).expanduser()
+
+        self._current(path/self.bin)
+        self._latest()
+        if self.current_version!=self.latest_version:
+            if not dry_run:
+                self._download()
+                self._install(path)
+        else:
+            print('Already up to date.')
+
+    def install(self, path='~/.local/bin'):
+        path = Path(path).expanduser()
+
+        if shutil.which(self.bin) is not None:
+            print('Warning: found an existing installation on the `PATH`.')
+
+        if (path/self.bin).exists():
+            print('Error: found an existing installation at the given path.')
             sys.exit(1)
 
-        version = match.group(1)
-        print('Latest version:', version)
-        return version
-    else:
-        print('Unexpected:', response)
-        print('Headers:', response.headers)
-        sys.exit(1)
+        self._latest()
+        self._download()
+        self._install(path)
 
+    def _current(self, bin):
+        if not bin.exists():
+            print('Error: no installation found.')
+            sys.exit(1)
 
-def download():
-    with requests.get(URL, stream=True) as response:
+        result = subprocess.check_output([bin, '-version'], text=True)
+        match = re.search(r'version (N-\d+-\w+|\d\.\d)', result)
+        if match is None:
+            print(f'Error: failed to parse current version from `{bin} -version` output.')
+            sys.exit(1)
+
+        self.current_version = match.group(1)
+        print('Current version:', self.current_version)
+
+    def _latest(self):
+        response = requests.get(self.URL, allow_redirects=False)
         response.raise_for_status()
-        bar = tqdm(
-            desc='Downloading',
-            total=int(response.headers['content-length']),
-            unit='B',
-            unit_scale=True,
-            dynamic_ncols=True
-        )
-        with open(TEMP_FILE, 'wb') as zf:
-            for chunk in response.iter_content(chunk_size=4096):
-                chunk_size = zf.write(chunk)
-                bar.update(chunk_size)
 
+        if response.status_code==307:
+            redirect_url = response.headers['location']
+            match = re.search(r'_(N-\d+-\w+|\d\.\d)', redirect_url)
+            if match is None:
+                print('Error: failed to parse latest version from redirected url.')
+                sys.exit(1)
 
-def install():
-    with zipfile.ZipFile(TEMP_FILE, 'r') as zf:
-        zf.extract(args.bin, args.path)
-        if args.verbose or len(zf.namelist())>1:
-            zf.printdir()
+            self.latest_version = match.group(1)
+            print('Latest version:', self.latest_version)
+        else:
+            print('Error: unexpected', response)
+            print('Headers:', response.headers)
+            sys.exit(1)
 
-    os.chmod(args.path/args.bin, 0o755)  # Make executable
-    print('Successfully installed to:', args.path)
+    def _download(self):
+        with requests.get(self.URL, stream=True) as response:
+            response.raise_for_status()
+            bar = tqdm(
+                total=int(response.headers['content-length']),
+                unit='B', unit_scale=True,
+                desc='Downloading', dynamic_ncols=True
+            )
+            with open(_TEMPFILE, 'wb') as zf:
+                for chunk in response.iter_content(chunk_size=4096):
+                    chunk_size = zf.write(chunk)
+                    bar.update(chunk_size)
 
+    def _install(self, path):
+        with zipfile.ZipFile(_TEMPFILE, 'r') as zf:
+            bin = zf.extract(self.bin)
+            os.chmod(bin, 0o755)
+            try:
+                shutil.move(bin, path)
+            except PermissionError:
+                subprocess.run(['sudo', 'mv', bin, path])
 
-def download_n_install_w_options():
-    if not args.RE_RUN:
-        if not args.force and get_current_version()==get_latest_version():
-            print('Already up to date.')
-            return
-        if args.dry_run:
-            return
-
-        download()
-
-    try:
-        install()
-    except PermissionError:
-        if args.RE_RUN:
-            raise
-        print('Installing with sudo...')
-        subprocess.run(['sudo', sys.executable, *sys.argv, '--RE-RUN'])
+        print('Successfully installed to:', path)
 
 
 def main():
     try:
-       download_n_install_w_options()
+        fire.Fire(FFUp)
     finally:
-       TEMP_FILE.unlink(missing_ok=True)
+        _TEMPFILE.unlink(missing_ok=True)
