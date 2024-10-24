@@ -1,6 +1,8 @@
 [project]
 name = "ffmpeg-update"
 version = "1.2.0"
+description = "Manage FFmpeg static binaries on macOS and Linux."
+readme = "README.md"
 authors = [
     { name = "Asadullah Shaikh" }
 ]
