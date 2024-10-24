@@ -44,6 +44,22 @@ class FFUp:
         self._install(file, path)
 
     def update(self, dir=None, dry_run=False):
+        path = self._getpath(dir)
+        self._current(path)
+        self._latest()
+        if self.current_version!=self.latest_version:
+            print('Update available.')
+            if not dry_run:
+                file = self._download()
+                self._install(file, path)
+        else:
+            print('Already up to date.')
+
+    def uninstall(self, dir=None):
+        path = self._getpath(dir)
+        self._uninstall(path)
+
+    def _getpath(self, dir):
         if dir is None:
             path = shutil.which(self.bin)
             if path is None:
@@ -55,15 +71,7 @@ class FFUp:
                 print('Error: no installation found at the given path.')
                 sys.exit(1)
 
-        self._current(path)
-        self._latest()
-        if self.current_version!=self.latest_version:
-            print('Update available.')
-            if not dry_run:
-                file = self._download()
-                self._install(file, path)
-        else:
-            print('Already up to date.')
+        return Path(path)
 
     def _current(self, path):
         output = subprocess.check_output([path, '-version'], text=True)
@@ -120,6 +128,14 @@ class FFUp:
             subprocess.run(['sudo', 'mv', bin, path], check=True, capture_output=True)
 
         print('Successfully installed:', path)
+
+    def _uninstall(self, path):
+        try:
+            os.remove(path)
+        except PermissionError:
+            subprocess.run(['sudo', 'rm', path], check=True, capture_output=True)
+
+        print('Successfully uninstalled:', path)
 
 
 def main():
