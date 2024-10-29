@@ -1,6 +1,7 @@
 [project]
 name = "ffmpeg-update"
 version = "1.3.0"
+readme = "README.md"
 authors = [
     { name = "Asadullah Shaikh" }
 ]
