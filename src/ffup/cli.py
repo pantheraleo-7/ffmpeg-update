@@ -29,6 +29,9 @@ class FFUp:
 
         self.URL = f'https://ffmpeg.martin-riedl.de/redirect/latest/{self.sys}/{self.arch}/{self.repo}/{self.bin}.zip'
 
+    def check(self, dir=None):
+        self.update(dir=dir, dry_run=True)
+
     def install(self, dir=None):
         path = Path(dir or os.getenv('XDG_BIN_HOME') or os.path.expanduser('~/.local/bin'), self.bin)
 
