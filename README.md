@@ -121,4 +121,4 @@ ffup uninstall [--dir <custom-path>]
 ### Error Handling
 
 - Permission issues are resolved automatically with `sudo` when necessary (and, consequently, user is prompted for password at `stdin`).
-- Checks for path handling are exhaustive, with appropriate messages written to `stdout`.
+- Checks for path handling are exhaustive, with appropriate messages written to `stdout` or `stderr`.
