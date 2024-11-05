@@ -39,7 +39,7 @@ class FFUp:
             print('Warning: found an existing installation on the `PATH`.')
 
         if path.exists():
-            print('Error: found an existing installation at the given path.')
+            print('Error: found an existing installation at the given path.', file=sys.stderr)
             sys.exit(1)
 
         self._latest()
@@ -66,12 +66,12 @@ class FFUp:
         if dir is None:
             path = shutil.which(self.bin)
             if path is None:
-                print('Error: no installation found on the `PATH`.')
+                print('Error: no installation found on the `PATH`.', file=sys.stderr)
                 sys.exit(1)
         else:
             path = Path(dir, self.bin)
             if not path.exists():
-                print('Error: no installation found at the given path.')
+                print('Error: no installation found at the given path.', file=sys.stderr)
                 sys.exit(1)
 
         return Path(path)
@@ -81,7 +81,7 @@ class FFUp:
 
         match = re.search(r'version (N-\d+-\w+|\d\.\d)', output)
         if match is None:
-            print(f'Error: failed to parse current version from `{path} -version` output.')
+            print(f'Error: failed to parse current version from `{path} -version` output.', file=sys.stderr)
             sys.exit(1)
 
         self.current_version = match.group(1)
@@ -94,15 +94,15 @@ class FFUp:
         if response.status_code==307:
             match = re.search(r'_(N-\d+-\w+|\d\.\d)', response.headers['location'])
             if match is None:
-                print('Error: failed to parse latest version from redirected url.')
+                print('Error: failed to parse latest version from redirected url.', file=sys.stderr)
                 sys.exit(1)
 
             self.latest_version = match.group(1)
             print('Latest version:', self.latest_version)
 
         else:
-            print('Error: unexpected', response)
-            print('Headers:', response.headers)
+            print('Error: unexpected', response, file=sys.stderr)
+            print('Headers:', response.headers, file=sys.stderr)
             sys.exit(1)
 
     def _download(self):
