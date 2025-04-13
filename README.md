@@ -1,6 +1,6 @@
-# FFUp: **FF**mpeg **Up**date
+# FFUp
 
-**ffmpeg-update** is a Python package designed to manage FFmpeg static binaries on **macOS** and **Linux**. It fetches the latest builds published by [Martin Riedl](https://ffmpeg.martin-riedl.de/).
+A Python CLI tool to manage FFmpeg static binaries on Unix-like systems. It fetches the latest builds published by [Martin Riedl](https://ffmpeg.martin-riedl.de/).
 
 ## Features
 
@@ -13,16 +13,8 @@
 
 ## Installation
 
-### Using `uv`:
-
-```shell
-uv tool install git+https://github.com/pantheraleo-7/ffmpeg-update
-```
-
-### Using `pip`:
-
-```shell
-pip install git+https://github.com/pantheraleo-7/ffmpeg-update
+```bash
+pip install ffmpeg-update
 ```
 
 ## Usage
@@ -32,27 +24,27 @@ pip install git+https://github.com/pantheraleo-7/ffmpeg-update
 The installation provides the `ffup` command.
 
 - **Install**:
-  ```shell
+  ```bash
   ffup install [--dir <custom-path>]
   ```
 - **Update**:
-  ```shell
+  ```bash
   ffup update [--dir <custom-path>] [--dry-run]
   ```
 - **Check**:
-  ```shell
+  ```bash
   ffup check [--dir <custom-path>]
   ```
 - **Uninstall**:
-  ```shell
+  ```bash
   ffup uninstall [--dir <custom-path>]
   ```
 
 ### With `python`:
 
-Alternatively, the package can be run as a CLI module.
+Alternatively, the module can be invoked directly.
 
-```shell
+```bash
 python -m ffup <command>
 ```
 
@@ -62,7 +54,7 @@ python -m ffup <command>
 
 1. **Install**:
 
-```shell
+```bash
 ffup install [--dir <custom-path>]
 ```
 
@@ -74,7 +66,7 @@ ffup install [--dir <custom-path>]
 
 2. **Update**:
 
-```shell
+```bash
 ffup update [--dir <custom-path>] [--dry-run]
 ```
 
@@ -86,7 +78,7 @@ ffup update [--dir <custom-path>] [--dry-run]
 
 3. **Check**:
 
-```shell
+```bash
 ffup check [--dir <custom-path>]
 ```
 
@@ -98,7 +90,7 @@ ffup check [--dir <custom-path>]
 
 4. **Uninstall**:
 
-```shell
+```bash
 ffup uninstall [--dir <custom-path>]
 ```
 
@@ -120,5 +112,5 @@ ffup uninstall [--dir <custom-path>]
 
 ### Error Handling
 
-- Permission issues are resolved automatically with `sudo` when necessary (and, consequently, user is prompted for password at `stdin`).
-- Checks for path handling are exhaustive, with appropriate messages written to `stdout` or `stderr`.
+- Permission error triggers automatic escalation via `sudo` [and, consequently, prompts the user for password at `stdin`].
+- Path handling checks are exhaustive, with diagnostics logged to `stdout` and `stderr` as appropriate.
