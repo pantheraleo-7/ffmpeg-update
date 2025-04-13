@@ -12,11 +12,8 @@ import fire
 import requests
 from tqdm import tqdm
 
-_TMPDIR = tempfile.TemporaryDirectory()
-
 
 class FFUp:
-
     def __init__(self, sys=None, arch=None, repo=None, bin=None):
         self.sys = sys or os.getenv('FF_SYS') \
             or platform.system().replace('Darwin', 'macOS').lower()
@@ -28,6 +25,10 @@ class FFUp:
         self.bin = bin or os.getenv('FF_BIN') or 'ffmpeg'
 
         self.URL = f'https://ffmpeg.martin-riedl.de/redirect/latest/{self.sys}/{self.arch}/{self.repo}/{self.bin}.zip'
+        self._TMPDIR = tempfile.TemporaryDirectory()
+
+    def __del__(self):
+        self._TMPDIR.cleanup()
 
     def check(self, dir=None):
         self.update(dir=dir, dry_run=True)
@@ -113,7 +114,7 @@ class FFUp:
                 unit='B', unit_scale=True,
                 desc='Downloading', dynamic_ncols=True
             )
-            file = Path(_TMPDIR.name, 'ff.zip')
+            file = Path(self._TMPDIR.name, 'ff.zip')
             with file.open('wb') as zf:
                 for chunk in response.iter_content(chunk_size=4096):
                     chunk_size = zf.write(chunk)
@@ -122,7 +123,7 @@ class FFUp:
 
     def _install(self, file, path):
         with zipfile.ZipFile(file, 'r') as zf:
-            bin = zf.extract(self.bin, _TMPDIR.name)
+            bin = zf.extract(self.bin, self._TMPDIR.name)
             os.chmod(bin, 0o755)
 
         try:
@@ -142,7 +143,4 @@ class FFUp:
 
 
 def main():
-    try:
-        fire.Fire(FFUp)
-    finally:
-        _TMPDIR.cleanup()
+    fire.Fire(FFUp)
