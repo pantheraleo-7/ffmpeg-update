@@ -1,116 +1,135 @@
 # FFUp
 
-A Python CLI tool to manage FFmpeg static binaries on Unix-like systems. It fetches the latest builds published by [Martin Riedl](https://ffmpeg.martin-riedl.de/).
+A CLI package manager for the FFmpeg suite. It supports installation, updating, and management of pre-built static binaries published by [Martin Riedl](https://ffmpeg.martin-riedl.de/).
 
 ## Features
 
-- Install static builds of FFmpeg, FFprobe, and/or FFplay.
-- Update to the latest version.
-- Check for update.
-- Uninstall from the system.
-- Supports custom installation paths.
-- Supports both **Linux** and **macOS** (Windows builds are not available upstream).
+- Install [pre-built static binaries of] FFmpeg, FFprobe, and/or FFplay
+- Fetch latest `release` or `snapshot` builds
+- Configure custom installation location
+- Update to latest version
+- Check for updates
+- Uninstall from system
+- Smart permission handling
+- Atomic file system operations
+- Progress bar with ETA and download speed
+- Automatic operating system and machine architecture detection
+
+> **Supported Platforms (Upstream):** Linux amd64, Linux arm64v8, macOS Intel (Deprecated), Apple Silicon
 
 ## Installation
+
+FFUp is available in and as `ffmpeg-update` python package on PyPI.
 
 ```bash
 pip install ffmpeg-update
 ```
 
-## Usage
+> **Note:** you may have to activate the virtual environment or put the `bin` directory in `$PATH`
 
-### With `ffup`:
+## CLI Reference
 
-The installation provides the `ffup` command.
+### Usage
+
+The installation provides the `ffup` executable.
+
+```bash
+ffup [OPTIONS] <install|update|check|uninstall> [ffpmeg] [ffprobe] [ffplay]
+```
+
+> **Hint:** you can pass multiple names to the commands, e.g. `ffup install ffmpeg ffprobe`
+
+Alternatively, it can also be invoked using `python -m`.
+
+```bash
+python -m ffup [OPTIONS] <install|update|check|uninstall>
+```
+
+### Commands
 
 - **Install**:
   ```bash
-  ffup install [--dir <custom-path>]
+  ffup install [ffpmeg] [ffprobe] [ffplay]
   ```
 - **Update**:
   ```bash
-  ffup update [--dir <custom-path>] [--dry-run]
+  ffup update [--dry-run] [ffpmeg] [ffprobe] [ffplay]
   ```
 - **Check**:
   ```bash
-  ffup check [--dir <custom-path>]
+  ffup check [ffpmeg] [ffprobe] [ffplay]
   ```
 - **Uninstall**:
   ```bash
-  ffup uninstall [--dir <custom-path>]
+  ffup uninstall [ffpmeg] [ffprobe] [ffplay]
   ```
 
-### With `python`:
-
-Alternatively, the module can be invoked directly.
-
-```bash
-python -m ffup <command>
-```
+> **Note:** if you do not pass any name, e.g. `ffup install`, all commands will default to `ffmpeg`
 
 ## Documentation
 
-### CLI Commands, Their Flags and Environment Variables
-
-1. **Install**:
+### Syntax
 
 ```bash
-ffup install [--dir <custom-path>]
+ffup [--dir <PATH>] [--os <linux|macos>] [--arch <arm64|amd64>] [--build <snapshot|release>] <install|update [--dry-run]|check|uninstall> [ffpmeg] [ffprobe] [ffplay]
 ```
 
-- Downloads and installs the binary.
-- Flags and Environment variables:
-  - `--dir <custom-path>`: Specifies the installation directory.
-  - `$XDG_BIN_HOME`: Used as the installation directory if `--dir` is not specified.
-  - Defaults to `~/.local/bin` if none of the above is defined.
+### Global Options and Environment Variables
 
-2. **Update**:
+> **Note:** the environment variables and defaults are listed in order of precedence
 
 ```bash
-ffup update [--dir <custom-path>] [--dry-run]
+ffup [--dir <PATH>]
 ```
 
-- Updates the binary to the latest version.
-- Flags:
-  - `--dir <custom-path>`: Specifies the directory where the binary is installed.
-  - Defaults to the first executable found on the `$PATH`.
-  - `--dry-run`: Only checks for update, skips download and install.
-
-3. **Check**:
+- Specifies the installation directory
+  - `$FFUP_DIR`
+  - `$XDG_BIN_HOME`
+  - Defaults to `~/.local/bin`
 
 ```bash
-ffup check [--dir <custom-path>]
+ffup [--build <snapshot|release>]
 ```
 
-- Checks for update.
-- Same as `ffup update [--dir <custom-path>] --dry-run`.
-- Flags:
-  - `--dir <custom-path>`: Specifies the directory where the binary is installed.
-  - Defaults to the first executable found on the `$PATH`.
-
-4. **Uninstall**:
+- Specifies the build type
+  - `$FFUP_BUILD`
+  - Defaults to `snapshot`.
 
 ```bash
-ffup uninstall [--dir <custom-path>]
+ffup [--os <linux|macos>]
 ```
 
-- Removes the installed binary.
-- Flags:
-  - `--dir <custom-path>`: Specifies the directory where the binary is installed.
-  - Defaults to the first executable found on the `$PATH`.
+- Specifies the operating system
+  - `$FFUP_OS`
+  - Defaults to auto-detection using `platform` stdlib
 
-### Global Flags and Their Environment Variables
+```bash
+ffup [--arch <arm64|amd64>]
+```
 
-- `--sys` or `$FF_SYS`: Specifies the platform name (`macos`, `linux`). Default is to detect using `platform` stdlib.
-- `--arch` or `$FF_ARCH`: Specifies the platform architecture (`arm64`, `amd64`). Default is to detect using `platform` stdlib.
-- `--repo` or `$FF_REPO`: Specifies the static build type (`snapshot`, `release`). Defaults to `snapshot`.
-- `--bin` or `$FF_BIN`: Specifies the binary name (`ffmpeg`, `ffprobe`, `ffplay`). Defaults to `ffmpeg`.
+- Specifies the machine architecture
+  - `$FFUP_ARCH`
+  - Defaults to auto-detection using `platform` stdlib
 
-> **Note:** Flags have precedence over their respective environment variables.
+### Command Flags
 
-> **Note:** Command arguments may be given positionally. Global arguments are always specified with their respective keywords (flags).
+```bash
+ffup update [--dry-run]
+```
+
+- Checks for updates but stops before downloading and installing
+- `ffup check` is an alias for `ffup update --dry-run`
 
 ### Error Handling
 
-- Permission error triggers automatic escalation via `sudo` [and, consequently, prompts the user for password at `stdin`].
-- Path handling checks are exhaustive, with diagnostics logged to `stdout` and `stderr` as appropriate.
+- `PermissionError`
+  - Triggers automatic escalation via `sudo`
+  - The user is prompted for a password at `stdin`
+- `FileNotFoundError`
+  - By design, all commands will fail if the path in question does not exist
+  - If the error occurs in the `ffup install` command, use `mkdir -p <PATH>` to create the installation directory
+  - If the error occurs in any other command, ensure the path points to the installed binary
+- `requests.exceptions.HTTPError`
+  - `404 Client Error: Not Found for url: ...`
+    - Caused by invalid input value for an option or argument
+    - Ensure the values are correct
