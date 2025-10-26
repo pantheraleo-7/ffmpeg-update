@@ -1,3 +1,4 @@
+import io
 import os as os_
 import platform
 import re
@@ -8,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 import fire
-import requests
+import niquests
 from tqdm import tqdm
 
 
@@ -35,10 +36,13 @@ class FFUp:
             or ("arm64" if platform.machine() in ["arm64", "aarch64"] else "amd64")
         )
         self.build = build or os_.getenv("FFUP_BUILD") or "snapshot"
-        self._TMPDIR = tempfile.TemporaryDirectory()
+
+        self._client = niquests.Session(base_url="https://ffmpeg.martin-riedl.de")
+        self._tmpdir = tempfile.TemporaryDirectory()
 
     def __del__(self):
-        self._TMPDIR.cleanup()
+        self._client.close()
+        self._tmpdir.cleanup()
 
     def install(self, *bins):
         for bin in self._get_bins(bins):
@@ -46,7 +50,7 @@ class FFUp:
             path = self.dir / bin
 
             print("Installing:", bin)
-            file = self._download(url)
+            file = self._download(url, bin)
             self._install(file, path)
             print("Installed:", path)
 
@@ -71,7 +75,7 @@ class FFUp:
             if current_version != latest_version:
                 print("Update available")
                 if not dry_run:
-                    file = self._download(url)
+                    file = self._download(url, bin)
                     self._install(file, path)
                     print("Updated:", path)
             else:
@@ -84,7 +88,7 @@ class FFUp:
         return set(bins) or {os_.getenv("FFUP_BIN") or "ffmpeg"}
 
     def _get_url(self, bin):
-        return f"https://ffmpeg.martin-riedl.de/redirect/latest/{self.os}/{self.arch}/{self.build}/{bin}.zip"
+        return f"/redirect/latest/{self.os}/{self.arch}/{self.build}/{bin}.zip"
 
     def _current(self, path):
         output = subprocess.check_output([path, "-version"], text=True)
@@ -100,8 +104,7 @@ class FFUp:
         return match.group(1)
 
     def _latest(self, url):
-        response = requests.get(url, allow_redirects=False)
-
+        response = self._client.get(url, allow_redirects=False)
         response.raise_for_status()
         if response.status_code == 307:
             match = re.search(
@@ -120,32 +123,29 @@ class FFUp:
             print("Error: unexpected", response, file=sys.stderr)
             sys.exit(1)
 
-    def _download(self, url):
-        with requests.get(url, stream=True) as response:
-            response.raise_for_status()
-            bar = tqdm(
-                desc="Downloading",
-                total=int(response.headers["content-length"]),
-                unit="B",
-                unit_scale=True,
-                dynamic_ncols=True,
-            )
-            file = Path(self._TMPDIR.name, "ff.zip")
-            with file.open("wb") as zf:
-                for chunk in response.iter_content(chunk_size=4096):
-                    chunk_size = zf.write(chunk)
-                    bar.update(chunk_size)
-        return file
+    def _download(self, url, bin):
+        response = self._client.get(url, stream=True)
+        response.raise_for_status()
+        bar = tqdm(
+            desc="Downloading",
+            total=int(response.headers["content-length"]),
+            unit="B",
+            unit_scale=True,
+            dynamic_ncols=True,
+        )
+        with io.BytesIO() as buf:
+            for chunk in response.iter_content():
+                chunk_size = buf.write(chunk)
+                bar.update(chunk_size)
+            with zipfile.ZipFile(buf) as zf:
+                return zf.extract(bin, self._tmpdir.name)
 
     def _install(self, file, path):
-        with zipfile.ZipFile(file, "r") as zf:
-            bin = zf.extract(path.name, self._TMPDIR.name)
-            os_.chmod(bin, 0o755)
-
+        os_.chmod(file, 0o755)
         try:
-            os_.replace(bin, path)
+            os_.replace(file, path)
         except PermissionError:
-            subprocess.run(["sudo", "mv", bin, path], check=True, capture_output=True)
+            subprocess.run(["sudo", "mv", file, path], check=True, capture_output=True)
 
     def _uninstall(self, path):
         try:
