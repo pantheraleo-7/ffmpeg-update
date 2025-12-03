@@ -1,135 +1,113 @@
-# FFUp
+FFmpeg-update is a package manager for the FFmpeg suite, available as both a CLI tool and a Python library. It fetches pre-built, static binaries published by [Martin Riedl](https://ffmpeg.martin-riedl.de).
 
-A CLI package manager for the FFmpeg suite. It supports installation, updating, and management of pre-built static binaries published by [Martin Riedl](https://ffmpeg.martin-riedl.de/).
+> **Supported Platforms (Upstream):** Linux amd64, Linux arm64v8, macOS Intel (Deprecated), Apple Silicon
 
-## Features
+# Features
 
 - Install [pre-built static binaries of] FFmpeg, FFprobe, and/or FFplay
-- Fetch latest `release` or `snapshot` builds
+- Fetch latest *release* or *snapshot* builds
 - Configure custom installation location
 - Update to latest version
 - Check for updates
 - Uninstall from system
 - Smart permission handling
 - Atomic file system operations
-- Progress bar with ETA and download speed
 - Automatic operating system and machine architecture detection
 
-> **Supported Platforms (Upstream):** Linux amd64, Linux arm64v8, macOS Intel (Deprecated), Apple Silicon
-
-## Installation
-
-FFUp is available in and as `ffmpeg-update` python package on PyPI.
+# Installation
 
 ```bash
 pip install ffmpeg-update
 ```
 
-> **Note:** you may have to activate the virtual environment or put the `bin` directory in `$PATH`
-
-## CLI Reference
-
-### Usage
-
 The installation provides the `ffup` executable.
 
-```bash
-ffup [OPTIONS] <install|update|check|uninstall> [ffpmeg] [ffprobe] [ffplay]
-```
+# CLI Reference
 
-> **Hint:** you can pass multiple names to the commands, e.g. `ffup install ffmpeg ffprobe`
-
-Alternatively, it can also be invoked using `python -m`.
+## Usage
 
 ```bash
-python -m ffup [OPTIONS] <install|update|check|uninstall>
+ffup <install|update [--dry-run]|check|uninstall> [OPTIONS] [ffmpeg] [ffprobe] [ffplay]
 ```
 
-### Commands
+Alternatively, can be invoked as a module with `python -m ffmpeg_update <COMMAND>`.
 
-- **Install**:
-  ```bash
-  ffup install [ffpmeg] [ffprobe] [ffplay]
-  ```
-- **Update**:
-  ```bash
-  ffup update [--dry-run] [ffpmeg] [ffprobe] [ffplay]
-  ```
-- **Check**:
-  ```bash
-  ffup check [ffpmeg] [ffprobe] [ffplay]
-  ```
-- **Uninstall**:
-  ```bash
-  ffup uninstall [ffpmeg] [ffprobe] [ffplay]
-  ```
+> **Hint:** Multiple names can be passed, e.g. `ffup install ffmpeg ffprobe`
 
-> **Note:** if you do not pass any name, e.g. `ffup install`, all commands will default to `ffmpeg`
+> **Note:** Default is `ffmpeg`, if no name is passed
 
-## Documentation
+## Parameters
 
-### Syntax
+- `--dir`: The path to the installation directory
+  - Environment variable: `$FFUP_DIR`/`$XDG_BIN_HOME`
+  - Default: `~/.local/bin`
+  - Functions: `check`, `install`, `uninstall`, `update`
 
-```bash
-ffup [--dir <PATH>] [--os <linux|macos>] [--arch <arm64|amd64>] [--build <snapshot|release>] <install|update [--dry-run]|check|uninstall> [ffpmeg] [ffprobe] [ffplay]
-```
+- `--build`: The build type
+  - Choices: `release`, `snapshot`
+  - Environment Variable: `$FFUP_BUILD`
+  - Default: `snapshot`
+  - Functions: `check`, `install`, `update`
 
-### Global Options and Environment Variables
+- `--arch`: The machine architecture
+  - Choices: `amd64`, `arm64`
+  - Environment Variable: `$FFUP_ARCH`
+  - Default: Auto-detect using `platform.machine()`
+  - Functions: `check`, `install`, `update`
 
-> **Note:** the environment variables and defaults are listed in order of precedence
+- `--os`: The operating system
+  - Choices: `linux`, `macos`
+  - Environment Variable: `$FFUP_OS`
+  - Default: Auto-detect using `platform.system()`
+  - Functions: `check`, `install`, `update`
 
-```bash
-ffup [--dir <PATH>]
-```
+- `--dry-run`: A flag to skip download/install, and only check for updates
+  - `ffup check` is an alias for `ffup update --dry-run`
+  - Default: `False`
+  - Functions: `update`
 
-- Specifies the installation directory
-  - `$FFUP_DIR`
-  - `$XDG_BIN_HOME`
-  - Defaults to `~/.local/bin`
+# API Reference
 
-```bash
-ffup [--build <snapshot|release>]
-```
+## Functions
 
-- Specifies the build type
-  - `$FFUP_BUILD`
-  - Defaults to `snapshot`.
+- `update(bins = {"ffmpeg"}, /, *, dry_run = False, dir, tempdir, progress, client) -> None`
+- `install(bins = {"ffmpeg"}, /, *, dir, tempdir, progress, client) -> None`
+- `uninstall(bins = {"ffmpeg"}, /, *, dir) -> None`
+- `get_arch() -> Literal["amd64", "arm64"]`
+- `get_os() -> Literal["linux", "macos"]`
 
-```bash
-ffup [--os <linux|macos>]
-```
+> - `bins`: A `set` of binary names
+>   - Must contain one or more of `"ffmpeg"`, `"ffprobe"`, and `"ffplay"`
+>
+> - `dry_run`: A `bool` indicating whether to skip download/install
+>
+> - `dir`: A `pathlib.Path` to the installation directory
+>   - Must exist and be absolute
+>
+> - `tempdir`: A `tempfile.TemporaryDirectory[str]` used to store and extract the downloaded archives
+>
+> - `progress`: A `rich.progress.Progress` used to show progress bars in the terminal
+>
+> - `client`: A `niquests.Session` used to make HTTP requests
+>   - Must set parameter `base_url` to `f"https://ffmpeg.martin-riedl.de/redirect/latest/{os}/{arch}/{build}/"`
+>   - `build`: `"release"`, `"snapshot"`
+>   - `arch`: `"amd64"`, `"arm64"`
+>   - `os`: `"linux"`, `"macos"`
 
-- Specifies the operating system
-  - `$FFUP_OS`
-  - Defaults to auto-detection using `platform` stdlib
+# Error Handling
 
-```bash
-ffup [--arch <arm64|amd64>]
-```
+## `FileNotFoundError`
 
-- Specifies the machine architecture
-  - `$FFUP_ARCH`
-  - Defaults to auto-detection using `platform` stdlib
+- By design, all operations will fail if the path in question does not exist
+- For new installations, ensure that the installation directory exists
+- For other operations, ensure that the path points to the installed binary
 
-### Command Flags
+## `HTTPError`
 
-```bash
-ffup update [--dry-run]
-```
+- `404 Client Error: Not Found for url: ...`
+  - Caused by invalid values for one or more of `build`, `arch`, and `os` parameters
 
-- Checks for updates but stops before downloading and installing
-- `ffup check` is an alias for `ffup update --dry-run`
+## `PermissionError`
 
-### Error Handling
-
-- `PermissionError`
-  - Triggers automatic escalation via `sudo`
-  - The user is prompted for a password at `stdin`
-- `FileNotFoundError`
-  - By design, all commands will fail if the path in question does not exist
-  - If the error occurs in the `ffup install` command, use `mkdir -p <PATH>` to create the installation directory
-  - If the error occurs in any other command, ensure the path points to the installed binary
-- `requests.exceptions.HTTPError`
-  - `404 Client Error: Not Found for url: ...`
-    - Caused by invalid input value for an option or argument
-    - Ensure the values are correct
+- Triggers automatic escalation via `sudo`
+- The user is prompted for a password at `stdin`

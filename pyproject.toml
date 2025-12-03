@@ -1,57 +1,40 @@
 [project]
 name = "ffmpeg-update"
-version = "2.0.1"
+version = "3.0.0"
 description = "Package manager for FFmpeg, FFprobe, and FFplay static binaries"
 readme = "README.md"
-requires-python = ">=3.9"
 authors = [
-    { name = "Asadullah Shaikh" },
+    { name = "Asadullah Shaikh" }
 ]
-keywords = [
-    "updater",
-    "installer",
-    "downloader",
-    "binary",
-    "program",
-    "executable",
-    "command",
-    "line",
-    "cli",
-    "tool",
-]
+urls = { Repository = "https://github.com/pantheraleo-7/ffmpeg-update" }
+keywords = ["updater", "installer", "downloader", "program", "executable", "binary", "command", "line", "cli", "tool"]
 classifiers = [
-    "Topic :: Utilities",
-    "Topic :: Terminals",
-    "Topic :: Multimedia",
-    "Topic :: System :: Installation/Setup",
-    "Topic :: System :: Software Distribution",
-    "Topic :: Software Development :: Build Tools",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
-    "Operating System :: Unix",
-    "Operating System :: MacOS",
-    "Operating System :: POSIX",
-    "Operating System :: POSIX :: Linux",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
-    "Intended Audience :: Information Technology",
-    "Development Status :: 5 - Production/Stable",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Topic :: Multimedia",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Installation/Setup",
+    "Topic :: System :: Software Distribution",
+    "Topic :: Terminals",
+    "Topic :: Utilities",
+    "Typing :: Typed",
 ]
-urls = { Repository = "https://github.com/pantheraleo-7/ffmpeg-update" }
+requires-python = ">=3.10"
 dependencies = [
-    "fire>=0.7.1,<0.8.0",
+    "cyclopts>=4.0.0,<5.0.0",
     "niquests>=3.15.2,<4.0.0",
-    "tqdm>=4.67.1,<5.0.0",
+    "rich>=14.2.0,<15.0.0",
 ]
 
 [project.scripts]
-ffup = "ffup:main"
+ffup = "ffmpeg_update:main"
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
 build-backend = "uv_build"
-
-[tool.uv]
-add-bounds = "major"
-build-backend.module-name = "ffup"
