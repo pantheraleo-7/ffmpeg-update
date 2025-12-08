@@ -1,6 +1,6 @@
 [project]
 name = "ffmpeg-update"
-version = "3.0.0"
+version = "3.0.1"
 description = "Package manager for FFmpeg, FFprobe, and FFplay static binaries"
 readme = "README.md"
 authors = [

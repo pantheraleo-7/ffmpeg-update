@@ -14,7 +14,13 @@ from rich import print
 from rich.progress import Progress
 
 __all__ = ["get_arch", "get_os", "install", "uninstall", "update"]
-_DIR_DEFAULT = ResolvedExistingDirectory(os.path.expanduser("~/.local/bin"))
+
+DIR_DEFAULT = ResolvedExistingDirectory(os.path.expanduser("~/.local/bin"))
+
+BinType = Literal["ffmpeg", "ffprobe", "ffplay"]
+BuildType = Literal["release", "snapshot"]
+ArchType = Literal["amd64", "arm64"]
+OSType = Literal["linux", "macos"]
 
 app = App()
 app.register_install_completion_command(add_to_startup=False)
@@ -25,14 +31,10 @@ def ffup(
     *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
     dir: Annotated[
         ResolvedExistingDirectory, Parameter(env_var=("FFUP_DIR", "XDG_BIN_HOME"))
-    ] = _DIR_DEFAULT,
-    build: Annotated[
-        Literal["release", "snapshot"], Parameter(env_var="FFUP_BUILD")
-    ] = "snapshot",
-    arch: Annotated[Literal["amd64", "arm64"], Parameter(env_var="FFUP_ARCH")]
-    | None = None,
-    os: Annotated[Literal["linux", "macos"], Parameter(env_var="FFUP_OS")]
-    | None = None,
+    ] = DIR_DEFAULT,
+    build: Annotated[BuildType, Parameter(env_var="FFUP_BUILD")] = "snapshot",
+    arch: Annotated[ArchType, Parameter(env_var="FFUP_ARCH")] | None = None,
+    os: Annotated[OSType, Parameter(env_var="FFUP_OS")] | None = None,
 ):
     command, bound, ignored = app.parse_args(tokens)
     additional_kwargs = {}
@@ -59,7 +61,7 @@ def ffup(
 
 @app.command
 def update(
-    bins: set[Literal["ffmpeg", "ffprobe", "ffplay"]] = {"ffmpeg"},
+    bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dry_run: Annotated[bool, Parameter(show_default=False, negative="")] = False,
@@ -86,7 +88,7 @@ def update(
 
 @app.command
 def check(
-    bins: set[Literal["ffmpeg", "ffprobe", "ffplay"]] = {"ffmpeg"},
+    bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dir: Annotated[ResolvedExistingDirectory, Parameter(parse=False)],
@@ -101,7 +103,7 @@ def check(
 
 @app.command
 def install(
-    bins: set[Literal["ffmpeg", "ffprobe", "ffplay"]] = {"ffmpeg"},
+    bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dir: Annotated[ResolvedExistingDirectory, Parameter(parse=False)],
@@ -119,12 +121,12 @@ def install(
 
 @app.meta.command
 def uninstall(
-    bins: set[Literal["ffmpeg", "ffprobe", "ffplay"]] = {"ffmpeg"},
+    bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dir: Annotated[
         ResolvedExistingDirectory, Parameter(env_var=("FFUP_DIR", "XDG_BIN_HOME"))
-    ] = _DIR_DEFAULT,
+    ] = DIR_DEFAULT,
 ) -> None:
     for bin in bins:
         path = dir / bin
@@ -132,24 +134,24 @@ def uninstall(
         print("Uninstalled:", path)
 
 
-def get_arch() -> Literal["amd64", "arm64"]:
+def get_arch() -> ArchType:
     arch = platform.machine()
     if arch in ("x86_64", "amd64"):
         return "amd64"
     elif arch in ("aarch64", "arm64"):
         return "arm64"
     else:
-        raise OSError(f"unsupported architecture '{arch}'")
+        raise RuntimeError(f"unsupported architecture '{arch}'")
 
 
-def get_os() -> Literal["linux", "macos"]:
+def get_os() -> OSType:
     os = platform.system()
     if os == "Linux":
         return "linux"
     elif os == "Darwin":
         return "macos"
     else:
-        raise NotImplementedError(f"unsupported operating system '{os}'")
+        raise RuntimeError(f"unsupported operating system '{os}'")
 
 
 def _current(path):
