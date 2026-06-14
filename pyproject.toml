@@ -36,5 +36,11 @@ dependencies = [
 ffup = "ffmpeg_update:main"
 
 [build-system]
-requires = ["uv_build>=0.9.5,<0.10.0"]
+requires = ["uv_build>=0.11.18,<0.12"]
 build-backend = "uv_build"
+
+[tool.uv]
+environments = [
+    "sys_platform == 'darwin'",
+    "sys_platform == 'linux'",
+]
