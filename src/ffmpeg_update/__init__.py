@@ -4,6 +4,7 @@ import platform
 import re
 import subprocess
 import zipfile
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Annotated, Literal
 
@@ -15,7 +16,7 @@ from rich.progress import Progress
 
 __all__ = ["get_arch", "get_os", "install", "uninstall", "update"]
 
-DIR_DEFAULT = ResolvedExistingDirectory(os.path.expanduser("~/.local/bin"))
+DIR_DEFAULT = Path("~/.local/bin").expanduser()
 
 BinType = Literal["ffmpeg", "ffprobe", "ffplay"]
 BuildType = Literal["release", "snapshot"]
@@ -75,15 +76,15 @@ def update(
             path = dir / bin
             current = _current(path)
             latest = _latest(bin, client)
-            print(f"FF{bin[2:]}:\n\tCurrent: {current}\n\tLatest: {latest}")
+            print(f"{_fmt_FF(bin)}:\n\tCurrent: {current}\n\tLatest: {latest}")
             if current != latest:
-                print(f"FF{bin[2:]}: update available")
+                print(f"{_fmt_FF(bin)}: update available")
                 if not dry_run:
                     file = _download(bin, tempdir, progress, client)
                     _install(file, path)
                     print("Updated:", path)
             else:
-                print(f"FF{bin[2:]}: up to date")
+                print(f"{_fmt_FF(bin)}: up to date")
 
 
 @app.command
@@ -177,16 +178,14 @@ def _latest(bin, client):
 def _download(bin, tempdir, progress, client):
     response = client.get(f"{bin}.zip", stream=True)
     response.raise_for_status()
-    id = progress.add_task(
-        f"FF{bin[2:]}:", total=int(response.headers["content-length"])
-    )
+    id = progress.add_task(_fmt_FF(bin), total=int(response.headers["content-length"]))
     with io.BytesIO() as buf:
         for chunk in response.iter_content():
             chunk_size = buf.write(chunk)
             progress.update(id, advance=chunk_size)
         progress.update(id, visible=False)
         with zipfile.ZipFile(buf) as zf:
-            return zf.extract(bin, tempdir.name)
+            return Path(zf.extract(bin, tempdir.name))
 
 
 def _install(file, path):
@@ -194,14 +193,18 @@ def _install(file, path):
     try:
         os.replace(file, path)
     except PermissionError:
-        subprocess.run(["sudo", "mv", file, path], check=True, capture_output=True)
+        subprocess.run(["sudo", "mv", file, path], check=True)
 
 
 def _uninstall(path):
     try:
         os.remove(path)
     except PermissionError:
-        subprocess.run(["sudo", "rm", path], check=True, capture_output=True)
+        subprocess.run(["sudo", "rm", path], check=True)
+
+
+def _fmt_FF(bin):
+    return "FF" + bin[2:]
 
 
 def main():

@@ -1,5 +1,6 @@
 FFmpeg-update is a package manager for the FFmpeg suite, available as both a CLI tool and a Python library. It fetches pre-built, static binaries published by [Martin Riedl](https://ffmpeg.martin-riedl.de).
 
+> [!NOTE]
 > **Supported Platforms (Upstream):** Linux amd64, Linux arm64v8, macOS Intel (Deprecated), Apple Silicon
 
 # Features
@@ -10,6 +11,7 @@ FFmpeg-update is a package manager for the FFmpeg suite, available as both a CLI
 - Update to latest version
 - Check for updates
 - Uninstall from system
+- Progress bar with ETA
 - Smart permission handling
 - Atomic file system operations
 - Automatic operating system and machine architecture detection
@@ -32,9 +34,11 @@ ffup <install|update [--dry-run]|check|uninstall> [OPTIONS] [ffmpeg] [ffprobe] [
 
 Alternatively, can be invoked as a module with `python -m ffmpeg_update <COMMAND>`.
 
-> **Hint:** Multiple names can be passed, e.g. `ffup install ffmpeg ffprobe`
+> [!TIP]
+> Multiple names can be passed, e.g. `ffup install ffmpeg ffprobe`
 
-> **Note:** Default is `ffmpeg`, if no name is passed
+> [!NOTE]
+> Default is `ffmpeg`, if no name is passed
 
 ## Parameters
 
