@@ -1,7 +1,8 @@
 import io
-import os
 import platform
 import re
+import secrets
+import shutil
 import subprocess
 import zipfile
 from pathlib import Path
@@ -189,16 +190,28 @@ def _download(bin, tempdir, progress, client):
 
 
 def _install(file, path):
-    os.chmod(file, 0o755)
+    file.chmod(0o755)
+    temp_path = path.with_name(f".{path.name}-{secrets.token_hex(8)}.tmp")
     try:
-        os.replace(file, path)
+        shutil.move(file, temp_path)
     except PermissionError:
-        subprocess.run(["sudo", "mv", file, path], check=True)
+        _, _, _, _, uid, gid, _, _, _, _ = path.parent.stat()
+        subprocess.run(["sudo", "chown", f"{uid}:{gid}", file], check=True)
+        subprocess.run(["sudo", "mv", "-f", file, temp_path], check=True)
+        subprocess.run(["sudo", "mv", "-f", temp_path, path], check=True)
+    else:
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except PermissionError:
+                subprocess.run(["sudo", "rm", "-f", temp_path], check=True)
 
 
 def _uninstall(path):
     try:
-        os.remove(path)
+        path.unlink()
     except PermissionError:
         subprocess.run(["sudo", "rm", path], check=True)
 
