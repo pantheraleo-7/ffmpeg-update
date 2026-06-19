@@ -10,6 +10,7 @@ FFmpeg-update is a package manager for the FFmpeg suite, available as both a CLI
 - Configure custom installation location
 - Update to latest version
 - Check for updates
+- Concurrent downloads
 - Uninstall from system
 - Progress bar with ETA
 - Smart permission handling
@@ -74,8 +75,8 @@ Alternatively, can be invoked as a module with `python -m ffmpeg_update <COMMAND
 
 ## Functions
 
-- `update(bins = {"ffmpeg"}, /, *, dry_run = False, dir, tempdir, progress, client) -> None`
-- `install(bins = {"ffmpeg"}, /, *, dir, tempdir, progress, client) -> None`
+- async `update(bins = {"ffmpeg"}, /, *, dry_run = False, dir, tempdir, progress, client) -> None`
+- async `install(bins = {"ffmpeg"}, /, *, dir, tempdir, progress, client) -> None`
 - `uninstall(bins = {"ffmpeg"}, /, *, dir) -> None`
 - `get_arch() -> Literal["amd64", "arm64"]`
 - `get_os() -> Literal["linux", "macos"]`
@@ -92,7 +93,7 @@ Alternatively, can be invoked as a module with `python -m ffmpeg_update <COMMAND
 >
 > - `progress`: A `rich.progress.Progress` used to show progress bars in the terminal
 >
-> - `client`: A `niquests.Session` used to make HTTP requests
+> - `client`: A `niquests.AsyncSession` used to make HTTP requests
 >   - Must set parameter `base_url` to `f"https://ffmpeg.martin-riedl.de/redirect/latest/{os}/{arch}/{build}/"`
 >   - `build`: `"release"`, `"snapshot"`
 >   - `arch`: `"amd64"`, `"arm64"`

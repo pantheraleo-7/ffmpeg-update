@@ -11,6 +11,7 @@ keywords = ["updater", "installer", "downloader", "program", "executable", "bina
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
+    "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
