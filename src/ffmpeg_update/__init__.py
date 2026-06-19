@@ -168,15 +168,12 @@ def _current(path):
 
 
 async def _latest(bin, client):
-    response = await client.get(f"{bin}.zip", allow_redirects=False)
+    response = await client.get(f"{bin}.zip", allow_redirects=False, stream=True)
     response.raise_for_status()
-    if response.status_code == 307:
-        match = re.search(r"_(N-\d+-\w+|\d\.\d(\.\d)?)", response.headers["location"])
-        if match is None:
-            raise ValueError("failed to parse version from HTTP response")
-        return match.group(1)
-    else:
-        raise ValueError(f"unexpected {response}")
+    match = re.search(r"_(N-\d+-\w+|\d\.\d(\.\d)?)", response.headers["location"])
+    if match is None:
+        raise ValueError("failed to parse version from HTTP response")
+    return match.group(1)
 
 
 async def _download(bin, tempdir, progress, client):
