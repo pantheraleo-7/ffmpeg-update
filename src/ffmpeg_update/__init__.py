@@ -1,3 +1,4 @@
+import asyncio
 import io
 import platform
 import re
@@ -11,7 +12,7 @@ from typing import Annotated, Literal
 
 from cyclopts import App, Parameter
 from cyclopts.types import ResolvedExistingDirectory
-from niquests import Session
+from niquests import AsyncSession
 from rich import print
 from rich.progress import Progress
 
@@ -29,7 +30,7 @@ app.register_install_completion_command(add_to_startup=False)
 
 
 @app.meta.default
-def ffup(
+async def ffup(
     *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
     dir: Annotated[
         ResolvedExistingDirectory, Parameter(env_var=("FFUP_DIR", "XDG_BIN_HOME"))
@@ -54,15 +55,15 @@ def ffup(
         arch = get_arch() if arch is None else arch
         os = get_os() if os is None else os
 
-        additional_kwargs["client"] = Session(
+        additional_kwargs["client"] = AsyncSession(
             base_url=f"https://ffmpeg.martin-riedl.de/redirect/latest/{os}/{arch}/{build}/"
         )
 
-    return command(*bound.args, **bound.kwargs, **additional_kwargs)
+    return await command(*bound.args, **bound.kwargs, **additional_kwargs)
 
 
 @app.command
-def update(
+async def update(
     bins: set[BinType] = {"ffmpeg"},
     /,
     *,
@@ -70,53 +71,55 @@ def update(
     dir: Annotated[ResolvedExistingDirectory, Parameter(parse=False)],
     tempdir: Annotated[TemporaryDirectory[str], Parameter(parse=False)],
     progress: Annotated[Progress, Parameter(parse=False)],
-    client: Annotated[Session, Parameter(parse=False)],
+    client: Annotated[AsyncSession, Parameter(parse=False)],
 ) -> None:
     with progress:
-        for bin in bins:
-            path = dir / bin
-            current = _current(path)
-            latest = _latest(bin, client)
+        for bin in bins.copy():
+            current = _current(dir / bin)
+            latest = await _latest(bin, client)
             print(f"{_fmt_FF(bin)}:\n\tCurrent: {current}\n\tLatest: {latest}")
             if current != latest:
                 print(f"{_fmt_FF(bin)}: update available")
-                if not dry_run:
-                    file = _download(bin, tempdir, progress, client)
-                    _install(file, path)
-                    print("Updated:", path)
             else:
+                bins.remove(bin)
                 print(f"{_fmt_FF(bin)}: up to date")
+
+        if not dry_run and bins:
+            await install(
+                bins, dir=dir, tempdir=tempdir, progress=progress, client=client
+            )
 
 
 @app.command
-def check(
+async def check(
     bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dir: Annotated[ResolvedExistingDirectory, Parameter(parse=False)],
     tempdir: Annotated[TemporaryDirectory[str], Parameter(parse=False)],
     progress: Annotated[Progress, Parameter(parse=False)],
-    client: Annotated[Session, Parameter(parse=False)],
+    client: Annotated[AsyncSession, Parameter(parse=False)],
 ):
-    update(
+    await update(
         bins, dry_run=True, dir=dir, tempdir=tempdir, progress=progress, client=client
     )
 
 
 @app.command
-def install(
+async def install(
     bins: set[BinType] = {"ffmpeg"},
     /,
     *,
     dir: Annotated[ResolvedExistingDirectory, Parameter(parse=False)],
     tempdir: Annotated[TemporaryDirectory[str], Parameter(parse=False)],
     progress: Annotated[Progress, Parameter(parse=False)],
-    client: Annotated[Session, Parameter(parse=False)],
+    client: Annotated[AsyncSession, Parameter(parse=False)],
 ) -> None:
     with progress:
-        for bin in bins:
-            path = dir / bin
-            file = _download(bin, tempdir, progress, client)
+        for file in await asyncio.gather(
+            *[_download(bin, tempdir, progress, client) for bin in bins]
+        ):
+            path = dir / file.name
             _install(file, path)
             print("Installed:", path)
 
@@ -164,8 +167,8 @@ def _current(path):
     return match.group(1)
 
 
-def _latest(bin, client):
-    response = client.get(f"{bin}.zip", allow_redirects=False)
+async def _latest(bin, client):
+    response = await client.get(f"{bin}.zip", allow_redirects=False)
     response.raise_for_status()
     if response.status_code == 307:
         match = re.search(r"_(N-\d+-\w+|\d\.\d(\.\d)?)", response.headers["location"])
@@ -176,12 +179,12 @@ def _latest(bin, client):
         raise ValueError(f"unexpected {response}")
 
 
-def _download(bin, tempdir, progress, client):
-    response = client.get(f"{bin}.zip", stream=True)
+async def _download(bin, tempdir, progress, client):
+    response = await client.get(f"{bin}.zip", stream=True)
     response.raise_for_status()
     id = progress.add_task(_fmt_FF(bin), total=int(response.headers["content-length"]))
     with io.BytesIO() as buf:
-        for chunk in response.iter_content():
+        async for chunk in await response.iter_content():
             chunk_size = buf.write(chunk)
             progress.update(id, advance=chunk_size)
         progress.update(id, visible=False)
