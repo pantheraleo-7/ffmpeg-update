@@ -130,7 +130,7 @@ wheels = [
 
 [[package]]
 name = "ffmpeg-update"
-version = "3.1.0"
+version = "3.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "cyclopts", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
